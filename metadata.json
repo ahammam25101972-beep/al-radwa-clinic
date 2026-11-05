@@ -1,0 +1,6 @@
+{
+  "name": "عيادة الرضوى لطب وجراحة الأسنان",
+  "description": "منصة حجز المواعيد الذكية والاستشارات الفورية لعيادة الرضوى لطب وجراحة الأسنان.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

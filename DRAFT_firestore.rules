@@ -1,0 +1,138 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        request.auth.token.email == 'ahammam25101972@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidAppointment(data) {
+      return data.keys().hasAll([
+          'fullName',
+          'phone',
+          'serviceType',
+          'appointmentDate',
+          'appointmentTime',
+          'notes',
+          'status',
+          'userId',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'fullName',
+          'phone',
+          'serviceType',
+          'appointmentDate',
+          'appointmentTime',
+          'notes',
+          'status',
+          'userId',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.fullName is string &&
+        data.fullName.size() >= 3 &&
+        data.fullName.size() <= 120 &&
+        data.phone is string &&
+        data.phone.size() >= 8 &&
+        data.phone.size() <= 20 &&
+        data.phone.matches('^[0-9+\\-\\s()]{8,20}$') &&
+        data.serviceType is string &&
+        data.serviceType.size() <= 40 &&
+        data.serviceType in ['كشف', 'حشو', 'خلع', 'تنظيف', 'تركيبات', 'تقويم'] &&
+        data.appointmentDate is string &&
+        data.appointmentDate.size() == 10 &&
+        data.appointmentDate.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+        data.appointmentTime is string &&
+        data.appointmentTime.size() >= 4 &&
+        data.appointmentTime.size() <= 20 &&
+        data.notes is string &&
+        data.notes.size() <= 500 &&
+        data.status is string &&
+        data.status.size() <= 20 &&
+        data.status in ['pending', 'confirmed', 'cancelled', 'completed'] &&
+        data.userId is string &&
+        isValidId(data.userId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    match /Appointments/{appointmentId} {
+      allow get: if isVerified() && isValidId(appointmentId) && (
+        existing().userId == request.auth.uid || isAdmin()
+      );
+
+      // Zero get()/exists() in list block to prevent O(n) read cost explosion
+      allow list: if isVerified() && (
+        existing().userId == request.auth.uid ||
+        request.auth.token.email == 'ahammam25101972@gmail.com'
+      );
+
+      allow create: if isVerified() &&
+        isValidId(appointmentId) &&
+        isValidAppointment(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().status == 'pending' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isVerified() &&
+        isValidId(appointmentId) &&
+        isValidAppointment(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          // Action 1: Admin status or schedule management
+          (
+            isAdmin() &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'appointmentDate', 'appointmentTime', 'notes', 'updatedAt'])
+          ) ||
+          // Action 2: Patient cancels their own pending appointment
+          (
+            existing().userId == request.auth.uid &&
+            existing().status == 'pending' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+            incoming().status == 'cancelled'
+          ) ||
+          // Action 3: Patient reschedules/updates notes of their own pending appointment
+          (
+            existing().userId == request.auth.uid &&
+            existing().status == 'pending' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['appointmentDate', 'appointmentTime', 'notes', 'updatedAt']) &&
+            incoming().status == existing().status
+          )
+        );
+
+      allow delete: if isVerified() && isValidId(appointmentId) && isAdmin();
+    }
+  }
+}

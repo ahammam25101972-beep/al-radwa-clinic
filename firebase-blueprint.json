@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Represents a dental clinic appointment booked by a patient at Al-Radwa Dental Clinic.",
+      "type": "object",
+      "properties": {
+        "fullName": {
+          "type": "string",
+          "description": "Patient quad-name (الاسم الرباعي)",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "phone": {
+          "type": "string",
+          "description": "Patient phone number (رقم الهاتف)",
+          "minLength": 8,
+          "maxLength": 20,
+          "pattern": "^[0-9+\\-\\s()]{8,20}$"
+        },
+        "serviceType": {
+          "type": "string",
+          "description": "Selected dental service type (نوع الخدمة)",
+          "enum": ["كشف", "حشو", "خلع", "تنظيف", "تركيبات", "تقويم"],
+          "maxLength": 40
+        },
+        "appointmentDate": {
+          "type": "string",
+          "description": "Date of appointment in YYYY-MM-DD format",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "appointmentTime": {
+          "type": "string",
+          "description": "Time slot for the appointment (12:00 PM - 10:00 PM)",
+          "minLength": 4,
+          "maxLength": 20
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional patient notes or symptoms",
+          "maxLength": 500
+        },
+        "status": {
+          "type": "string",
+          "description": "Current booking status",
+          "enum": ["pending", "confirmed", "cancelled", "completed"],
+          "maxLength": 20
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the patient who created the appointment",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when appointment was booked"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when appointment was last updated"
+        }
+      },
+      "required": [
+        "fullName",
+        "phone",
+        "serviceType",
+        "appointmentDate",
+        "appointmentTime",
+        "notes",
+        "status",
+        "userId",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/Appointments/{appointmentId}": {
+      "schema": {
+        "$ref": "#/entities/Appointment"
+      },
+      "description": "Stores patient dental appointments for Al-Radwa Clinic."
+    }
+  }
+}
